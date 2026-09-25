@@ -1,7 +1,10 @@
 export type StudentRecord = {
+  id: number;
   name: string;
   rollNo: string;
   course: string;
+  parentEmail: string;
+  facultyEmail: string;
   percentage: number;
   subjects: Array<{
     name: string;
@@ -12,8 +15,10 @@ export type StudentRecord = {
 };
 
 export type FacultyRecord = {
+  id: number;
   name: string;
   subject: string;
+  email: string;
   percentage: number;
   students: number;
 };
@@ -33,9 +38,12 @@ export const institutionStats: InstitutionStat[] = [
 
 export const studentAttendance: StudentRecord[] = [
   {
+    id: 1,
     name: 'Aarav Nair',
     rollNo: 'CS-201',
     course: 'B.Tech CSE',
+    parentEmail: 'parent1@example.com',
+    facultyEmail: 'faculty.math@example.com',
     percentage: 82.4,
     subjects: [
       { name: 'Maths', present: 30, total: 34, percentage: 88.2 },
@@ -44,9 +52,12 @@ export const studentAttendance: StudentRecord[] = [
     ],
   },
   {
+    id: 2,
     name: 'Priya Sharma',
     rollNo: 'CS-208',
     course: 'B.Tech CSE',
+    parentEmail: 'parent2@example.com',
+    facultyEmail: 'faculty.os@example.com',
     percentage: 58.6,
     subjects: [
       { name: 'Maths', present: 17, total: 32, percentage: 53.1 },
@@ -55,9 +66,12 @@ export const studentAttendance: StudentRecord[] = [
     ],
   },
   {
+    id: 3,
     name: 'Rohan Verma',
     rollNo: 'CS-214',
     course: 'B.Tech CSE',
+    parentEmail: 'parent3@example.com',
+    facultyEmail: 'faculty.dbms@example.com',
     percentage: 71.2,
     subjects: [
       { name: 'Maths', present: 22, total: 30, percentage: 73.3 },
@@ -68,7 +82,15 @@ export const studentAttendance: StudentRecord[] = [
 ];
 
 export const facultySummary: FacultyRecord[] = [
-  { name: 'Dr. Meera Iyer', subject: 'Mathematics', percentage: 74.8, students: 64 },
-  { name: 'Prof. Rahul Sen', subject: 'Operating Systems', percentage: 60.3, students: 52 },
-  { name: 'Dr. Sneha Nair', subject: 'Database Systems', percentage: 56.1, students: 48 },
+  { id: 1, name: 'Dr. Meera Iyer', subject: 'Mathematics', email: 'faculty.math@example.com', percentage: 74.8, students: 64 },
+  { id: 2, name: 'Prof. Rahul Sen', subject: 'Operating Systems', email: 'faculty.os@example.com', percentage: 60.3, students: 52 },
+  { id: 3, name: 'Dr. Sneha Nair', subject: 'Database Systems', email: 'faculty.dbms@example.com', percentage: 56.1, students: 48 },
+];
+
+export const institutionDepartments = [
+  'Computer Science',
+  'Electronics',
+  'Mechanical',
+  'Civil',
+  'Business Administration',
 ];
