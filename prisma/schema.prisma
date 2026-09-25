@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Student {
+  id           Int    @id @default(autoincrement())
+  name         String
+  rollNo       String @unique
+  course       String
+  email        String @unique
+  parentEmail  String
+  passwordHash String
+  percentage   Float  @default(0)
+  subjects     String
+  createdAt    DateTime @default(now())
+  attendance   Attendance[]
+}
+
+model Faculty {
+  id           Int    @id @default(autoincrement())
+  name         String
+  subject      String
+  facultyEmail String @unique
+  passwordHash String
+  percentage   Float  @default(0)
+  students     Int    @default(0)
+  createdAt    DateTime @default(now())
+}
+
+model Resource {
+  id           Int      @id @default(autoincrement())
+  title        String
+  subject      String
+  facultyEmail String
+  fileName     String
+  filePath     String
+  createdAt    DateTime @default(now())
+}
+
+model Assignment {
+  id           Int                    @id @default(autoincrement())
+  title        String
+  subject      String
+  facultyEmail String
+  questions    String
+  createdAt    DateTime               @default(now())
+  submissions  AssignmentSubmission[]
+}
+
+model AssignmentSubmission {
+  id           Int        @id @default(autoincrement())
+  assignmentId Int
+  studentEmail String
+  answers      String
+  score        Int
+  total        Int
+  submittedAt  DateTime   @default(now())
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentEmail])
+}
+
+model Attendance {
+  id        Int      @id @default(autoincrement())
+  studentId Int
+  subject   String
+  date      String
+  present   Boolean
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subject, date])
+  @@index([date, subject])
+}

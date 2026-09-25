@@ -5,3 +5,6 @@ out
 .env.local
 npm-debug.log*
 .DS_Store
+*.db
+data/app-data.json
+data/uploads/

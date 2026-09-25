@@ -1,11 +1,10 @@
 export type StudentRecord = {
-  id: number;
   name: string;
   rollNo: string;
   course: string;
-  parentEmail: string;
-  facultyEmail: string;
+  email?: string;
   percentage: number;
+  parentEmail?: string;
   subjects: Array<{
     name: string;
     present: number;
@@ -15,12 +14,11 @@ export type StudentRecord = {
 };
 
 export type FacultyRecord = {
-  id: number;
   name: string;
   subject: string;
-  email: string;
   percentage: number;
   students: number;
+  facultyEmail?: string;
 };
 
 export type InstitutionStat = {
@@ -38,13 +36,11 @@ export const institutionStats: InstitutionStat[] = [
 
 export const studentAttendance: StudentRecord[] = [
   {
-    id: 1,
     name: 'Aarav Nair',
     rollNo: 'CS-201',
     course: 'B.Tech CSE',
-    parentEmail: 'parent1@example.com',
-    facultyEmail: 'faculty.math@example.com',
     percentage: 82.4,
+    parentEmail: 'parent.arav@example.edu',
     subjects: [
       { name: 'Maths', present: 30, total: 34, percentage: 88.2 },
       { name: 'DBMS', present: 28, total: 32, percentage: 87.5 },
@@ -52,13 +48,11 @@ export const studentAttendance: StudentRecord[] = [
     ],
   },
   {
-    id: 2,
     name: 'Priya Sharma',
     rollNo: 'CS-208',
     course: 'B.Tech CSE',
-    parentEmail: 'parent2@example.com',
-    facultyEmail: 'faculty.os@example.com',
     percentage: 58.6,
+    parentEmail: 'parent.priya@example.edu',
     subjects: [
       { name: 'Maths', present: 17, total: 32, percentage: 53.1 },
       { name: 'DBMS', present: 20, total: 30, percentage: 66.7 },
@@ -66,13 +60,11 @@ export const studentAttendance: StudentRecord[] = [
     ],
   },
   {
-    id: 3,
     name: 'Rohan Verma',
     rollNo: 'CS-214',
     course: 'B.Tech CSE',
-    parentEmail: 'parent3@example.com',
-    facultyEmail: 'faculty.dbms@example.com',
     percentage: 71.2,
+    parentEmail: 'parent.rohan@example.edu',
     subjects: [
       { name: 'Maths', present: 22, total: 30, percentage: 73.3 },
       { name: 'DBMS', present: 22, total: 32, percentage: 68.8 },
@@ -82,15 +74,7 @@ export const studentAttendance: StudentRecord[] = [
 ];
 
 export const facultySummary: FacultyRecord[] = [
-  { id: 1, name: 'Dr. Meera Iyer', subject: 'Mathematics', email: 'faculty.math@example.com', percentage: 74.8, students: 64 },
-  { id: 2, name: 'Prof. Rahul Sen', subject: 'Operating Systems', email: 'faculty.os@example.com', percentage: 60.3, students: 52 },
-  { id: 3, name: 'Dr. Sneha Nair', subject: 'Database Systems', email: 'faculty.dbms@example.com', percentage: 56.1, students: 48 },
-];
-
-export const institutionDepartments = [
-  'Computer Science',
-  'Electronics',
-  'Mechanical',
-  'Civil',
-  'Business Administration',
+  { name: 'Dr. Meera Iyer', subject: 'Mathematics', percentage: 74.8, students: 64, facultyEmail: 'meera.iyer@college.edu' },
+  { name: 'Prof. Rahul Sen', subject: 'Operating Systems', percentage: 60.3, students: 52, facultyEmail: 'rahul.sen@college.edu' },
+  { name: 'Dr. Sneha Nair', subject: 'Database Systems', percentage: 56.1, students: 48, facultyEmail: 'sneha.nair@college.edu' },
 ];

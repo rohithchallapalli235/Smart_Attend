@@ -16,7 +16,7 @@ export async function sendFacultyAndParentAlert({
 }) {
   const smtpHost = process.env.SMTP_HOST;
   const smtpUser = process.env.SMTP_USER;
-  const smtpPassword = process.env.SMTP_PASSWORD;
+  const smtpPassword = process.env.SMTP_PASSWORD?.replace(/\s+/g, '');
   const smtpFrom = process.env.SMTP_FROM || smtpUser;
 
   if (!smtpHost || !smtpUser || !smtpPassword || !smtpFrom) {
@@ -27,6 +27,9 @@ export async function sendFacultyAndParentAlert({
     host: smtpHost,
     port: Number(process.env.SMTP_PORT || 587),
     secure: process.env.SMTP_SECURE === 'true',
+    tls: {
+      rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false',
+    },
     auth: {
       user: smtpUser,
       pass: smtpPassword,

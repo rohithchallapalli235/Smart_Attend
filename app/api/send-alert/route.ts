@@ -7,7 +7,7 @@ export async function POST(request: Request) {
 
     const { facultyEmail, parentEmail, studentName, percentage, courseName } = body;
 
-    if (!facultyEmail || !parentEmail || !studentName || typeof percentage !== 'number' || !courseName) {
+    if (!facultyEmail || !parentEmail || !studentName || typeof percentage !== 'number' || percentage < 0 || percentage > 100 || !courseName) {
       return NextResponse.json(
         {
           success: false,
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (percentage >= 60) {
+    if (percentage < 75) {
       await sendFacultyAndParentAlert({
         facultyEmail,
         parentEmail,
