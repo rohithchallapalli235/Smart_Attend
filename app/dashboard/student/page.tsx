@@ -68,7 +68,7 @@ export default function StudentDashboardPage() {
             <p className="text-sm text-slate-300">Faculty contact</p>
             <h3 className="mt-2 text-xl font-bold text-white">{facultySummary[1].name}</h3>
             <p className="mt-2 text-sm text-slate-300">{facultySummary[1].subject}</p>
-            <p className="mt-4 text-sm text-slate-200">Email: {facultySummary[1].email}</p>
+            <p className="mt-4 text-sm text-slate-200">Email: {facultySummary[1].facultyEmail}</p>
           </div>
         </aside>
       </div>

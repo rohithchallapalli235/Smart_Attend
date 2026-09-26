@@ -27,6 +27,13 @@ export type InstitutionStat = {
   change: string;
 };
 
+export const institutionDepartments = [
+  'Computer Science and Engineering',
+  'Electronics and Communication Engineering',
+  'Electrical and Electronics Engineering',
+  'Mechanical Engineering',
+];
+
 export const institutionStats: InstitutionStat[] = [
   { label: 'Total students', value: '8,420', change: '+5.2%' },
   { label: 'Present today', value: '7,166', change: '+4.7%' },
