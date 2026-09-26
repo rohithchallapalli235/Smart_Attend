@@ -36,6 +36,8 @@ export async function POST(request: Request) {
     });
 
     let emailSentCount = 0;
+    let emailErrorMsg: string | undefined;
+
     if (lowAttendanceStudents.length > 0) {
       for (const student of lowAttendanceStudents) {
         const subjectRecord = student.subjects.find((s) => s.name.toLowerCase() === body.subject.trim().toLowerCase());
@@ -53,12 +55,18 @@ export async function POST(request: Request) {
           emailSentCount += 1;
           console.log(`Alert email sent for student ${student.name}`);
         } catch (emailErr) {
+          emailErrorMsg = emailErr instanceof Error ? emailErr.message : 'Unknown email error';
           console.error(`Failed alert email for ${student.name}:`, emailErr);
         }
       }
     }
 
-    return NextResponse.json({ students, emailSent: emailSentCount });
+    return NextResponse.json({
+      students,
+      emailSent: emailSentCount,
+      lowAttendanceCount: lowAttendanceStudents.length,
+      emailError: emailErrorMsg,
+    });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error instanceof Error ? error.message : 'Unable to mark attendance.' },

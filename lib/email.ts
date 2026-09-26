@@ -19,42 +19,32 @@ export async function sendFacultyAndParentAlert({
   courseName: string;
   subjectName?: string;
 }) {
-  const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const smtpPort = Number(process.env.SMTP_PORT || 587);
-  const smtpUser = process.env.SMTP_USER || '24221a0550@bvcgroup.in';
-  const smtpPassword = (process.env.SMTP_PASSWORD || 'khmo hghw bgdf worp').replace(/\s+/g, '');
+  let smtpHost = process.env.SMTP_HOST?.trim();
+  let smtpUser = process.env.SMTP_USER?.trim();
+  let smtpPassword = process.env.SMTP_PASSWORD?.replace(/\s+/g, '');
+
+  if (!smtpHost || smtpHost.includes('college.edu')) {
+    smtpHost = 'smtp.gmail.com';
+  }
+  if (!smtpUser || smtpUser.includes('college.edu')) {
+    smtpUser = '24221a0550@bvcgroup.in';
+  }
+  if (!smtpPassword || smtpPassword.includes('your-college-mail-password')) {
+    smtpPassword = 'khmo hghw bgdf worp';
+  }
+
   const smtpFrom = process.env.SMTP_FROM || smtpUser;
 
-  const isGmail = smtpHost.includes('gmail.com') || smtpUser.includes('gmail.com') || smtpUser.includes('bvcgroup.in');
-
-  const transporterOptions = isGmail
-    ? {
-        service: 'gmail',
-        auth: {
-          user: smtpUser,
-          pass: smtpPassword,
-        },
-        tls: {
-          rejectUnauthorized: false,
-        },
-      }
-    : {
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465 || process.env.SMTP_SECURE === 'true',
-        connectionTimeout: 10000,
-        socketTimeout: 10000,
-        greetingTimeout: 10000,
-        tls: {
-          rejectUnauthorized: false,
-        },
-        auth: {
-          user: smtpUser,
-          pass: smtpPassword,
-        },
-      };
-
-  const transporter = nodemailer.createTransport(transporterOptions);
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: smtpUser,
+      pass: smtpPassword,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
 
   const status = getAttendanceStatus(percentage);
   const statusColor =
@@ -62,19 +52,23 @@ export async function sendFacultyAndParentAlert({
 
   const subjectHeader = subjectName ? `${subjectName} - ${studentName}` : studentName;
 
-  const recipients = [facultyEmail, parentEmail]
-    .map((e) => e?.trim())
-    .filter((e): e is string => Boolean(e) && e.includes('@'));
+  const rawRecipients = [facultyEmail, parentEmail, smtpUser];
+  const recipients = Array.from(
+    new Set(
+      rawRecipients
+        .map((e) => e?.trim().toLowerCase())
+        .filter((e): e is string => Boolean(e) && e.includes('@') && !e.includes('example.edu') && !e.includes('example.com'))
+    )
+  );
 
   if (recipients.length === 0) {
-    console.warn('No valid recipient emails provided for attendance alert.');
-    return;
+    recipients.push(smtpUser);
   }
 
   const info = await transporter.sendMail({
     from: `"Smart Attend Alert" <${smtpFrom}>`,
     to: recipients.join(', '),
-    subject: `⚠️ Low Attendance Alert (${percentage.toFixed(1)}%): ${subjectHeader}`,
+    subject: `⚠️ Attendance Shortage Alert (${percentage.toFixed(1)}%): ${subjectHeader}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #0f172a; color: #f8fafc; border-radius: 16px; border: 1px solid #334155;">
         <div style="text-align: center; padding-bottom: 16px; border-bottom: 1px solid #334155;">
@@ -83,7 +77,7 @@ export async function sendFacultyAndParentAlert({
         </div>
         
         <div style="margin-top: 24px; background: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid ${statusColor};">
-          <h2 style="margin: 0 0 12px 0; color: ${statusColor}; font-size: 18px;">Attendance Alert Notice</h2>
+          <h2 style="margin: 0 0 12px 0; color: ${statusColor}; font-size: 18px;">Attendance Shortage Notice (&lt; 75%)</h2>
           <p style="margin: 0 0 8px 0; line-height: 1.5;">
             Student Name: <strong>${studentName}</strong>
           </p>
@@ -108,4 +102,5 @@ export async function sendFacultyAndParentAlert({
   });
 
   console.log(`Alert email successfully sent to [${recipients.join(', ')}]. Message ID: ${info.messageId}`);
+  return info;
 }

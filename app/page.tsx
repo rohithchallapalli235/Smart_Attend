@@ -210,10 +210,16 @@ function HomeContent() {
       return;
     }
 
-    const result = await response.json() as { students: StudentRecord[]; emailSent: number };
+    const result = await response.json() as { students: StudentRecord[]; emailSent: number; lowAttendanceCount?: number; emailError?: string };
     setStudentList((prev) => prev.map((student) => result.students.find((updated) => updated.rollNo === student.rollNo) ?? student));
     setMarkedAttendance((prev) => ({ ...prev, ...attendanceDraft }));
-    setAttendanceMessage(result.emailSent ? `Attendance saved. ${result.emailSent} alert email(s) sent.` : 'Attendance saved. No alert email was needed.');
+    if (result.emailSent > 0) {
+      setAttendanceMessage(`Attendance saved. ${result.emailSent} alert email(s) successfully delivered to faculty & parent.`);
+    } else if (result.emailError) {
+      setAttendanceMessage(`Attendance saved, but email alert failed: ${result.emailError}`);
+    } else {
+      setAttendanceMessage('Attendance saved. Selected students have safe attendance (>= 75%).');
+    }
   };
 
   const handleStudentSubmit = async (event: React.FormEvent) => {
