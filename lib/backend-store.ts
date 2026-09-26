@@ -69,12 +69,75 @@ function toFacultyRecord(faculty: { name: string; subject: string; facultyEmail:
   };
 }
 
+async function seedInitialDataIfNeeded() {
+  const studentCount = await prisma.student.count();
+  const facultyCount = await prisma.faculty.count();
+
+  if (studentCount === 0 && facultyCount === 0) {
+    const defaultPasswordHash = await bcrypt.hash('123456', 10);
+
+    await prisma.faculty.createMany({
+      data: [
+        {
+          name: 'Dr. Meera Iyer',
+          subject: 'DWDM',
+          facultyEmail: 'meera.iyer@college.edu',
+          passwordHash: defaultPasswordHash,
+          percentage: 85.0,
+          students: 3,
+        },
+        {
+          name: 'Prof. Rahul Sen',
+          subject: 'Operating Systems',
+          facultyEmail: 'rahul.sen@college.edu',
+          passwordHash: defaultPasswordHash,
+          percentage: 78.0,
+          students: 3,
+        },
+      ],
+    });
+
+    await prisma.student.createMany({
+      data: [
+        {
+          name: 'Aarav Nair',
+          rollNo: 'CS-201',
+          course: 'B.Tech CSE',
+          email: 'aarav@college.edu',
+          parentEmail: 'parent.aarav@gmail.com',
+          passwordHash: defaultPasswordHash,
+          percentage: 82.4,
+          subjects: JSON.stringify([
+            { name: 'DWDM', present: 10, total: 12, percentage: 83.3 },
+            { name: 'Operating Systems', present: 9, total: 11, percentage: 81.8 },
+          ]),
+        },
+        {
+          name: 'Priya Sharma',
+          rollNo: 'CS-208',
+          course: 'B.Tech CSE',
+          email: 'priya@college.edu',
+          parentEmail: 'parent.priya@gmail.com',
+          passwordHash: defaultPasswordHash,
+          percentage: 65.0,
+          subjects: JSON.stringify([
+            { name: 'DWDM', present: 7, total: 12, percentage: 58.3 },
+            { name: 'Operating Systems', present: 8, total: 11, percentage: 72.7 },
+          ]),
+        },
+      ],
+    });
+  }
+}
+
 export async function getStudents(): Promise<StudentRecord[]> {
+  await seedInitialDataIfNeeded();
   const students = await prisma.student.findMany({ orderBy: { createdAt: 'desc' } });
   return students.map(toStudentRecord);
 }
 
 export async function getFaculty(): Promise<FacultyRecord[]> {
+  await seedInitialDataIfNeeded();
   const faculty = await prisma.faculty.findMany({ orderBy: { createdAt: 'desc' } });
   const students = await prisma.student.findMany();
 

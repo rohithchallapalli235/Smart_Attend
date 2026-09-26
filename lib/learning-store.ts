@@ -9,7 +9,10 @@ export type AssignmentQuestion = {
   answer: number;
 };
 
-const resourceDirectory = path.join(process.cwd(), 'data', 'uploads', 'resources');
+import fs from 'fs';
+
+const baseDataDir = fs.existsSync('/var/data') ? '/var/data' : path.join(process.cwd(), 'data');
+const resourceDirectory = path.join(baseDataDir, 'uploads', 'resources');
 
 function parseQuestions(raw: string): AssignmentQuestion[] {
   return JSON.parse(raw) as AssignmentQuestion[];
