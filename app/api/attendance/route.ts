@@ -31,15 +31,24 @@ export async function POST(request: Request) {
 
     let emailSent = 0;
     for (const student of students) {
-      if (student.percentage < 75) {
-        await sendFacultyAndParentAlert({
-          facultyEmail: body.facultyEmail,
-          parentEmail: student.parentEmail ?? '',
-          studentName: student.name,
-          percentage: student.percentage,
-          courseName: student.course,
-        });
-        emailSent += 1;
+      const subjectRecord = student.subjects.find((s) => s.name.toLowerCase() === body.subject.trim().toLowerCase());
+      const subjectPercentage = subjectRecord ? subjectRecord.percentage : student.percentage;
+      const effectivePercentage = Math.min(student.percentage, subjectPercentage);
+
+      if (student.percentage < 75 || subjectPercentage < 75) {
+        try {
+          await sendFacultyAndParentAlert({
+            facultyEmail: body.facultyEmail,
+            parentEmail: student.parentEmail ?? '',
+            studentName: student.name,
+            percentage: effectivePercentage,
+            courseName: student.course,
+            subjectName: body.subject,
+          });
+          emailSent += 1;
+        } catch (emailErr) {
+          console.error(`Failed to send alert email for student ${student.name}:`, emailErr);
+        }
       }
     }
 

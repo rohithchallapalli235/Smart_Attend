@@ -4,26 +4,47 @@ import type { FacultyRecord, StudentRecord } from '@/data/mock-data';
 import { prisma } from '@/lib/prisma';
 
 export function parseSubjects(raw: string): StudentRecord['subjects'] {
-  const parsed = JSON.parse(raw) as unknown;
+  let parsed: unknown = [];
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
   if (!Array.isArray(parsed)) return [];
 
-  return parsed.flatMap((item) => {
+  const rawList: Array<{ name: string; present: number; total: number; percentage: number }> = [];
+
+  for (const item of parsed) {
     if (typeof item === 'object' && item !== null && 'name' in item && 'present' in item && 'total' in item) {
       const subject = item as { name: string; present: number; total: number; percentage?: number };
-      return [{ name: subject.name, present: subject.present, total: subject.total, percentage: subject.percentage ?? (subject.total ? (subject.present / subject.total) * 100 : 0) }];
-    }
-
-    if (typeof item === 'string') {
+      const present = Number(subject.present) || 0;
+      const total = Number(subject.total) || 0;
+      rawList.push({
+        name: String(subject.name).trim(),
+        present,
+        total,
+        percentage: total ? (present / total) * 100 : 0,
+      });
+    } else if (typeof item === 'string') {
       const legacy = item.match(/name=([^;]+); present=(\d+); total=(\d+)/);
       if (legacy) {
         const present = Number(legacy[2]);
         const total = Number(legacy[3]);
-        return [{ name: legacy[1], present, total, percentage: total ? (present / total) * 100 : 0 }];
+        rawList.push({ name: legacy[1].trim(), present, total, percentage: total ? (present / total) * 100 : 0 });
       }
     }
+  }
 
-    return [];
-  });
+  const map = new Map<string, { name: string; present: number; total: number; percentage: number }>();
+  for (const sub of rawList) {
+    const key = sub.name.toLowerCase();
+    const existing = map.get(key);
+    if (!existing || sub.total >= existing.total) {
+      map.set(key, sub);
+    }
+  }
+
+  return Array.from(map.values());
 }
 
 function toStudentRecord(student: { name: string; rollNo: string; course: string; email: string; parentEmail: string; percentage: number; subjects: string }): StudentRecord {
@@ -196,28 +217,35 @@ export async function markAttendance({ rollNo, subject, present, date }: { rollN
     create: { studentId: student.id, subject: normalizedSubject, date, present },
   });
 
-  const dailyRecords = await prisma.attendance.findMany({ where: { studentId: student.id } });
-  const subjects = parseSubjects(student.subjects);
-  const legacySubjects = new Map(subjects.map((item) => [item.name.toLowerCase(), item]));
-  const dailySubjects = new Map<string, { name: string; present: number; total: number; percentage: number }>();
+  const allAttendance = await prisma.attendance.findMany({ where: { studentId: student.id } });
+  const subjectMap = new Map<string, { name: string; present: number; total: number; percentage: number }>();
 
-  for (const record of dailyRecords) {
-    const current = dailySubjects.get(record.subject.toLowerCase()) ?? { name: record.subject, present: legacySubjects.get(record.subject.toLowerCase())?.present ?? 0, total: legacySubjects.get(record.subject.toLowerCase())?.total ?? 0, percentage: 0 };
-    current.total += 1;
-    if (record.present) current.present += 1;
-    current.percentage = (current.present / current.total) * 100;
-    dailySubjects.set(record.subject.toLowerCase(), current);
+  const existingSubjects = parseSubjects(student.subjects);
+  for (const s of existingSubjects) {
+    subjectMap.set(s.name.toLowerCase(), { name: s.name, present: 0, total: 0, percentage: 0 });
   }
 
-  subjects.push(...dailySubjects.values());
+  for (const record of allAttendance) {
+    const key = record.subject.trim().toLowerCase();
+    const current = subjectMap.get(key) ?? { name: record.subject.trim(), present: 0, total: 0, percentage: 0 };
+    current.total += 1;
+    if (record.present) {
+      current.present += 1;
+    }
+    current.percentage = current.total > 0 ? (current.present / current.total) * 100 : 0;
+    subjectMap.set(key, current);
+  }
 
-  const totalPresent = subjects.reduce((sum, item) => sum + item.present, 0);
-  const totalClasses = subjects.reduce((sum, item) => sum + item.total, 0);
+  const finalSubjects = Array.from(subjectMap.values());
+  const totalPresent = finalSubjects.reduce((sum, item) => sum + item.present, 0);
+  const totalClasses = finalSubjects.reduce((sum, item) => sum + item.total, 0);
+  const overallPercentage = totalClasses > 0 ? (totalPresent / totalClasses) * 100 : 0;
+
   const updated = await prisma.student.update({
     where: { rollNo },
     data: {
-      subjects: JSON.stringify(subjects),
-      percentage: totalClasses ? (totalPresent / totalClasses) * 100 : 0,
+      subjects: JSON.stringify(finalSubjects),
+      percentage: overallPercentage,
     },
   });
 
