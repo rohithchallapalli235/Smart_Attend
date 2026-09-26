@@ -1,6 +1,9 @@
 import nodemailer from 'nodemailer';
 import { getAttendanceStatus } from '@/lib/attendance';
 
+// Bypass TLS certificate chain verification issues in cloud/network proxies
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 export async function sendFacultyAndParentAlert({
   facultyEmail,
   parentEmail,
@@ -22,23 +25,36 @@ export async function sendFacultyAndParentAlert({
   const smtpPassword = (process.env.SMTP_PASSWORD || 'khmo hghw bgdf worp').replace(/\s+/g, '');
   const smtpFrom = process.env.SMTP_FROM || smtpUser;
 
-  const isSecure = smtpPort === 465 || process.env.SMTP_SECURE === 'true';
+  const isGmail = smtpHost.includes('gmail.com') || smtpUser.includes('gmail.com') || smtpUser.includes('bvcgroup.in');
 
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: isSecure,
-    connectionTimeout: 10000,
-    socketTimeout: 10000,
-    greetingTimeout: 10000,
-    tls: {
-      rejectUnauthorized: false,
-    },
-    auth: {
-      user: smtpUser,
-      pass: smtpPassword,
-    },
-  });
+  const transporterOptions = isGmail
+    ? {
+        service: 'gmail',
+        auth: {
+          user: smtpUser,
+          pass: smtpPassword,
+        },
+        tls: {
+          rejectUnauthorized: false,
+        },
+      }
+    : {
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465 || process.env.SMTP_SECURE === 'true',
+        connectionTimeout: 10000,
+        socketTimeout: 10000,
+        greetingTimeout: 10000,
+        tls: {
+          rejectUnauthorized: false,
+        },
+        auth: {
+          user: smtpUser,
+          pass: smtpPassword,
+        },
+      };
+
+  const transporter = nodemailer.createTransport(transporterOptions);
 
   const status = getAttendanceStatus(percentage);
   const statusColor =
@@ -46,9 +62,18 @@ export async function sendFacultyAndParentAlert({
 
   const subjectHeader = subjectName ? `${subjectName} - ${studentName}` : studentName;
 
-  await transporter.sendMail({
+  const recipients = [facultyEmail, parentEmail]
+    .map((e) => e?.trim())
+    .filter((e): e is string => Boolean(e) && e.includes('@'));
+
+  if (recipients.length === 0) {
+    console.warn('No valid recipient emails provided for attendance alert.');
+    return;
+  }
+
+  const info = await transporter.sendMail({
     from: `"Smart Attend Alert" <${smtpFrom}>`,
-    to: [facultyEmail, parentEmail].filter(Boolean).join(', '),
+    to: recipients.join(', '),
     subject: `⚠️ Low Attendance Alert (${percentage.toFixed(1)}%): ${subjectHeader}`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #0f172a; color: #f8fafc; border-radius: 16px; border: 1px solid #334155;">
@@ -81,4 +106,6 @@ export async function sendFacultyAndParentAlert({
       </div>
     `,
   });
+
+  console.log(`Alert email successfully sent to [${recipients.join(', ')}]. Message ID: ${info.messageId}`);
 }
