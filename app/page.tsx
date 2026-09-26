@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { StatusPill } from '@/components/status-pill';
 import type { FacultyRecord, StudentRecord } from '@/data/mock-data';
@@ -60,7 +60,7 @@ function emptyQuestion(): AssignmentQuestion {
   return { prompt: '', options: ['', '', '', ''], answer: 0 };
 }
 
-export default function HomePage() {
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const role = searchParams.get('role') ?? 'institution';
@@ -843,5 +843,19 @@ export default function HomePage() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 flex items-center justify-center">
+          <div className="text-slate-400">Loading Smart Attend...</div>
+        </main>
+      }
+    >
+      <HomeContent />
+    </Suspense>
   );
 }
