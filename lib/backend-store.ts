@@ -274,30 +274,43 @@ export async function markAttendance({ rollNo, subject, present, date }: { rollN
   }
 
   const normalizedSubject = subject.trim();
+
+  const existingRecord = await prisma.attendance.findUnique({
+    where: { studentId_subject_date: { studentId: student.id, subject: normalizedSubject, date } },
+  });
+
   await prisma.attendance.upsert({
     where: { studentId_subject_date: { studentId: student.id, subject: normalizedSubject, date } },
     update: { present },
     create: { studentId: student.id, subject: normalizedSubject, date, present },
   });
 
-  const allAttendance = await prisma.attendance.findMany({ where: { studentId: student.id } });
+  const existingSubjects = parseSubjects(student.subjects);
   const subjectMap = new Map<string, { name: string; present: number; total: number; percentage: number }>();
 
-  const existingSubjects = parseSubjects(student.subjects);
   for (const s of existingSubjects) {
-    subjectMap.set(s.name.toLowerCase(), { name: s.name, present: 0, total: 0, percentage: 0 });
+    subjectMap.set(s.name.toLowerCase(), { name: s.name, present: s.present, total: s.total, percentage: s.percentage });
   }
 
-  for (const record of allAttendance) {
-    const key = record.subject.trim().toLowerCase();
-    const current = subjectMap.get(key) ?? { name: record.subject.trim(), present: 0, total: 0, percentage: 0 };
+  const current = subjectMap.get(normalizedSubject.toLowerCase()) ?? { name: normalizedSubject, present: 0, total: 0, percentage: 0 };
+
+  if (existingRecord) {
+    if (existingRecord.present !== present) {
+      if (present) {
+        current.present += 1;
+      } else {
+        current.present = Math.max(0, current.present - 1);
+      }
+    }
+  } else {
     current.total += 1;
-    if (record.present) {
+    if (present) {
       current.present += 1;
     }
-    current.percentage = current.total > 0 ? (current.present / current.total) * 100 : 0;
-    subjectMap.set(key, current);
   }
+
+  current.percentage = current.total > 0 ? (current.present / current.total) * 100 : 0;
+  subjectMap.set(normalizedSubject.toLowerCase(), current);
 
   const finalSubjects = Array.from(subjectMap.values());
   const totalPresent = finalSubjects.reduce((sum, item) => sum + item.present, 0);
