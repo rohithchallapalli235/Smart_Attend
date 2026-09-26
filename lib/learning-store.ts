@@ -65,6 +65,36 @@ export async function getStudentSubmissions(studentEmail: string) {
   return prisma.assignmentSubmission.findMany({ where: { studentEmail: studentEmail.trim().toLowerCase() } });
 }
 
+export async function getFacultyAssignmentSubmissions(facultyEmail: string) {
+  const assignments = await prisma.assignment.findMany({
+    where: { facultyEmail: facultyEmail.trim().toLowerCase() },
+    include: { submissions: true },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const students = await prisma.student.findMany({ select: { name: true, rollNo: true, email: true } });
+  const studentMap = new Map(students.map((s) => [s.email.toLowerCase(), s]));
+
+  return assignments.flatMap((assignment) => {
+    return assignment.submissions.map((sub) => {
+      const student = studentMap.get(sub.studentEmail.toLowerCase());
+      return {
+        id: sub.id,
+        assignmentId: assignment.id,
+        assignmentTitle: assignment.title,
+        subject: assignment.subject,
+        studentName: student?.name ?? sub.studentEmail,
+        rollNo: student?.rollNo ?? 'N/A',
+        studentEmail: sub.studentEmail,
+        score: sub.score,
+        total: sub.total,
+        percentage: sub.total > 0 ? (sub.score / sub.total) * 100 : 0,
+        submittedAt: sub.submittedAt,
+      };
+    });
+  });
+}
+
 export async function submitAssignment({ assignmentId, studentEmail, answers }: { assignmentId: number; studentEmail: string; answers: number[] }) {
   const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
   if (!assignment) throw new Error('Assignment not found.');

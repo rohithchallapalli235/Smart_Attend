@@ -56,6 +56,20 @@ type Submission = {
   total: number;
 };
 
+type FacultySubmissionRecord = {
+  id: number;
+  assignmentId: number;
+  assignmentTitle: string;
+  subject: string;
+  studentName: string;
+  rollNo: string;
+  studentEmail: string;
+  score: number;
+  total: number;
+  percentage: number;
+  submittedAt: string;
+};
+
 function emptyQuestion(): AssignmentQuestion {
   return { prompt: '', options: ['', '', '', ''], answer: 0 };
 }
@@ -77,6 +91,7 @@ function HomeContent() {
   const [resourceList, setResourceList] = useState<Resource[]>([]);
   const [assignmentList, setAssignmentList] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [facultySubmissions, setFacultySubmissions] = useState<FacultySubmissionRecord[]>([]);
 
   const [studentForm, setStudentForm] = useState<StudentForm>({
     name: '',
@@ -141,6 +156,13 @@ function HomeContent() {
     fetch(`/api/assignments/submissions?studentEmail=${encodeURIComponent(identity)}`)
       .then((response) => response.ok ? response.json() : [])
       .then((data: Submission[]) => setSubmissions(data));
+  }, [identity, role]);
+
+  useEffect(() => {
+    if (role !== 'faculty' || !identity) return;
+    fetch(`/api/assignments/submissions?facultyEmail=${encodeURIComponent(identity)}`)
+      .then((response) => response.ok ? response.json() : [])
+      .then((data: FacultySubmissionRecord[]) => setFacultySubmissions(data));
   }, [identity, role]);
 
   const currentStudent = useMemo(() => studentList.find((student) => student.email?.toLowerCase() === identity) ?? studentList[0], [identity, studentList]);
@@ -587,6 +609,37 @@ function HomeContent() {
               </div>
             </form>
           </section>
+
+          <section className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/80 p-5">
+            <p className="text-sm text-slate-400">Student submissions</p>
+            <h2 className="mt-1 text-2xl font-bold text-white">Quiz results & assignment attempts</h2>
+            <div className="mt-5 space-y-3">
+              {facultySubmissions.length ? (
+                facultySubmissions.map((sub) => (
+                  <div key={sub.id} className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-white">{sub.studentName}</span>
+                        <span className="text-xs text-slate-400">({sub.rollNo})</span>
+                      </div>
+                      <p className="mt-1 text-sm text-slate-300">{sub.assignmentTitle} • {sub.subject}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">Submitted: {new Date(sub.submittedAt).toLocaleDateString()} {new Date(sub.submittedAt).toLocaleTimeString()}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">Attempted</span>
+                      <div className="rounded-xl bg-slate-900 px-4 py-2 text-right">
+                        <p className="text-xs uppercase text-slate-400">Score</p>
+                        <p className="text-lg font-bold text-emerald-400">{sub.score} / {sub.total}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-400">No student submissions have been recorded yet for your assignments.</p>
+              )}
+            </div>
+          </section>
+
           {learningMessage ? <p className="mt-4 text-sm text-emerald-300">{learningMessage}</p> : null}
         </div>
       </main>

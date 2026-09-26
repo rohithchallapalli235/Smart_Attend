@@ -35,30 +35,30 @@ export async function POST(request: Request) {
       return student.percentage < 75 || subjectPercentage < 75;
     });
 
+    let emailSentCount = 0;
     if (lowAttendanceStudents.length > 0) {
-      (async () => {
-        for (const student of lowAttendanceStudents) {
-          const subjectRecord = student.subjects.find((s) => s.name.toLowerCase() === body.subject.trim().toLowerCase());
-          const subjectPercentage = subjectRecord ? subjectRecord.percentage : student.percentage;
-          const effectivePercentage = Math.min(student.percentage, subjectPercentage);
-          try {
-            await sendFacultyAndParentAlert({
-              facultyEmail: body.facultyEmail,
-              parentEmail: student.parentEmail ?? '',
-              studentName: student.name,
-              percentage: effectivePercentage,
-              courseName: student.course,
-              subjectName: body.subject,
-            });
-            console.log(`Alert email sent for student ${student.name}`);
-          } catch (emailErr) {
-            console.error(`Failed background alert email for ${student.name}:`, emailErr);
-          }
+      for (const student of lowAttendanceStudents) {
+        const subjectRecord = student.subjects.find((s) => s.name.toLowerCase() === body.subject.trim().toLowerCase());
+        const subjectPercentage = subjectRecord ? subjectRecord.percentage : student.percentage;
+        const effectivePercentage = Math.min(student.percentage, subjectPercentage);
+        try {
+          await sendFacultyAndParentAlert({
+            facultyEmail: body.facultyEmail,
+            parentEmail: student.parentEmail ?? '',
+            studentName: student.name,
+            percentage: effectivePercentage,
+            courseName: student.course,
+            subjectName: body.subject,
+          });
+          emailSentCount += 1;
+          console.log(`Alert email sent for student ${student.name}`);
+        } catch (emailErr) {
+          console.error(`Failed alert email for ${student.name}:`, emailErr);
         }
-      })().catch((err) => console.error('Background email runner error:', err));
+      }
     }
 
-    return NextResponse.json({ students, emailSent: lowAttendanceStudents.length });
+    return NextResponse.json({ students, emailSent: emailSentCount });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error instanceof Error ? error.message : 'Unable to mark attendance.' },
