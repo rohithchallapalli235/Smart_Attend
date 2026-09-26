@@ -4,6 +4,42 @@ import { getAttendanceStatus } from '@/lib/attendance';
 // Bypass TLS certificate chain verification issues in cloud/network proxies
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
+let sharedTransporter: nodemailer.Transporter | null = null;
+
+function getTransporter() {
+  if (sharedTransporter) return sharedTransporter;
+
+  let smtpHost = process.env.SMTP_HOST?.trim();
+  let smtpUser = process.env.SMTP_USER?.trim();
+  let smtpPassword = process.env.SMTP_PASSWORD?.replace(/\s+/g, '');
+
+  if (!smtpHost || smtpHost.includes('college.edu')) {
+    smtpHost = 'smtp.gmail.com';
+  }
+  if (!smtpUser || smtpUser.includes('college.edu')) {
+    smtpUser = '24221a0550@bvcgroup.in';
+  }
+  if (!smtpPassword || smtpPassword.includes('your-college-mail-password')) {
+    smtpPassword = 'khmo hghw bgdf worp';
+  }
+
+  sharedTransporter = nodemailer.createTransport({
+    service: 'gmail',
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
+    auth: {
+      user: smtpUser,
+      pass: smtpPassword,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+
+  return sharedTransporter;
+}
+
 export async function sendFacultyAndParentAlert({
   facultyEmail,
   parentEmail,
@@ -19,32 +55,13 @@ export async function sendFacultyAndParentAlert({
   courseName: string;
   subjectName?: string;
 }) {
-  let smtpHost = process.env.SMTP_HOST?.trim();
   let smtpUser = process.env.SMTP_USER?.trim();
-  let smtpPassword = process.env.SMTP_PASSWORD?.replace(/\s+/g, '');
-
-  if (!smtpHost || smtpHost.includes('college.edu')) {
-    smtpHost = 'smtp.gmail.com';
-  }
   if (!smtpUser || smtpUser.includes('college.edu')) {
     smtpUser = '24221a0550@bvcgroup.in';
   }
-  if (!smtpPassword || smtpPassword.includes('your-college-mail-password')) {
-    smtpPassword = 'khmo hghw bgdf worp';
-  }
-
   const smtpFrom = process.env.SMTP_FROM || smtpUser;
 
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: smtpUser,
-      pass: smtpPassword,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
+  const transporter = getTransporter();
 
   const status = getAttendanceStatus(percentage);
   const statusColor =

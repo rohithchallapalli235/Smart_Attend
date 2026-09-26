@@ -39,12 +39,12 @@ export async function POST(request: Request) {
     let emailErrorMsg: string | undefined;
 
     if (lowAttendanceStudents.length > 0) {
-      for (const student of lowAttendanceStudents) {
-        const subjectRecord = student.subjects.find((s) => s.name.toLowerCase() === body.subject.trim().toLowerCase());
-        const subjectPercentage = subjectRecord ? subjectRecord.percentage : student.percentage;
-        const effectivePercentage = Math.min(student.percentage, subjectPercentage);
-        try {
-          await sendFacultyAndParentAlert({
+      const emailResults = await Promise.allSettled(
+        lowAttendanceStudents.map((student) => {
+          const subjectRecord = student.subjects.find((s) => s.name.toLowerCase() === body.subject.trim().toLowerCase());
+          const subjectPercentage = subjectRecord ? subjectRecord.percentage : student.percentage;
+          const effectivePercentage = Math.min(student.percentage, subjectPercentage);
+          return sendFacultyAndParentAlert({
             facultyEmail: body.facultyEmail,
             parentEmail: student.parentEmail ?? '',
             studentName: student.name,
@@ -52,11 +52,15 @@ export async function POST(request: Request) {
             courseName: student.course,
             subjectName: body.subject,
           });
+        })
+      );
+
+      for (const res of emailResults) {
+        if (res.status === 'fulfilled') {
           emailSentCount += 1;
-          console.log(`Alert email sent for student ${student.name}`);
-        } catch (emailErr) {
-          emailErrorMsg = emailErr instanceof Error ? emailErr.message : 'Unknown email error';
-          console.error(`Failed alert email for ${student.name}:`, emailErr);
+        } else {
+          emailErrorMsg = res.reason instanceof Error ? res.reason.message : 'Unknown email error';
+          console.error('Parallel alert email failed:', res.reason);
         }
       }
     }
