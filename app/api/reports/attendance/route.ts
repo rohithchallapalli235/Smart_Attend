@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getStudents } from '@/lib/backend-store';
 
+export const dynamic = 'force-dynamic';
+
 function csvValue(value: string | number) {
   return `"${String(value).replace(/"/g, '""')}"`;
 }

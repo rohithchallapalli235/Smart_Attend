@@ -222,6 +222,53 @@ function HomeContent() {
     }
   };
 
+  const markSingleStudentAttendance = async (rollNo: string, present: boolean) => {
+    if (!currentFaculty?.facultyEmail || !currentFaculty?.subject) {
+      setAttendanceMessage('Faculty account or subject not found.');
+      return;
+    }
+
+    setAttendanceDraft((prev) => ({ ...prev, [rollNo]: present }));
+    setAttendanceMessage(`Saving attendance for ${rollNo}...`);
+
+    try {
+      const response = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rollNo,
+          present,
+          subject: currentFaculty.subject,
+          facultyEmail: currentFaculty.facultyEmail,
+          date: attendanceDate,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { message?: string } | null;
+        setAttendanceMessage(error?.message ?? 'Attendance could not be saved.');
+        return;
+      }
+
+      const result = (await response.json()) as { students: StudentRecord[]; emailSent: number; emailError?: string };
+      setStudentList((prev) => prev.map((student) => result.students.find((updated) => updated.rollNo === student.rollNo) ?? student));
+      setMarkedAttendance((prev) => ({ ...prev, [rollNo]: present }));
+
+      const targetStudent = studentList.find((s) => s.rollNo === rollNo);
+      const studentName = targetStudent?.name ?? rollNo;
+
+      if (result.emailSent > 0) {
+        setAttendanceMessage(`Attendance saved for ${studentName}! Low attendance alert email (< 75%) successfully sent to parent & faculty.`);
+      } else if (result.emailError) {
+        setAttendanceMessage(`Attendance saved for ${studentName}, but email alert failed: ${result.emailError}`);
+      } else {
+        setAttendanceMessage(`Attendance saved for ${studentName} (${present ? 'Present' : 'Absent'}). Student attendance is safe (>= 75%).`);
+      }
+    } catch {
+      setAttendanceMessage('Failed to save attendance. Check your connection.');
+    }
+  };
+
   const handleStudentSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -567,8 +614,8 @@ function HomeContent() {
                       {Object.prototype.hasOwnProperty.call(markedAttendance, student.rollNo) ? <p className="mt-1 text-xs font-semibold text-emerald-300">Already marked for {attendanceDate}</p> : null}
                     </div>
                     <div className="flex gap-2">
-                      <button type="button" disabled={Object.prototype.hasOwnProperty.call(markedAttendance, student.rollNo)} onClick={() => setAttendanceDraft((prev) => ({ ...prev, [student.rollNo]: true }))} className={`rounded-xl px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${selectedStatus === true ? 'bg-emerald-400 text-slate-950' : 'border border-emerald-500/40 text-emerald-300'}`}>Present</button>
-                      <button type="button" disabled={Object.prototype.hasOwnProperty.call(markedAttendance, student.rollNo)} onClick={() => setAttendanceDraft((prev) => ({ ...prev, [student.rollNo]: false }))} className={`rounded-xl px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${selectedStatus === false ? 'bg-red-500 text-white' : 'border border-red-500/40 text-red-300'}`}>Absent</button>
+                      <button type="button" disabled={Object.prototype.hasOwnProperty.call(markedAttendance, student.rollNo)} onClick={() => markSingleStudentAttendance(student.rollNo, true)} className={`rounded-xl px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${selectedStatus === true ? 'bg-emerald-400 text-slate-950' : 'border border-emerald-500/40 text-emerald-300'}`}>Present</button>
+                      <button type="button" disabled={Object.prototype.hasOwnProperty.call(markedAttendance, student.rollNo)} onClick={() => markSingleStudentAttendance(student.rollNo, false)} className={`rounded-xl px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${selectedStatus === false ? 'bg-red-500 text-white' : 'border border-red-500/40 text-red-300'}`}>Absent</button>
                     </div>
                   </div>
                 );

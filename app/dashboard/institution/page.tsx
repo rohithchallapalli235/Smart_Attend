@@ -1,7 +1,21 @@
 import { DashboardShell } from '@/components/dashboard-shell';
-import { institutionDepartments, institutionStats } from '@/data/mock-data';
+import { getFaculty, getStudents } from '@/lib/backend-store';
+import { institutionDepartments } from '@/data/mock-data';
 
-export default function InstitutionDashboardPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function InstitutionDashboardPage() {
+  const [students, faculty] = await Promise.all([getStudents(), getFaculty()]);
+  const averageAttendance = students.length
+    ? students.reduce((total, student) => total + student.percentage, 0) / students.length
+    : 0;
+  const institutionStats = [
+    { label: 'Registered students', value: students.length.toLocaleString() },
+    { label: 'Registered faculty', value: faculty.length.toLocaleString() },
+    { label: 'Average attendance', value: `${averageAttendance.toFixed(1)}%` },
+    { label: 'Students below 75%', value: students.filter((student) => student.percentage < 75).length.toLocaleString() },
+  ];
+
   return (
     <DashboardShell title="Institution Dashboard" subtitle="A full campus overview for administration and leadership." role="Institution">
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -10,7 +24,6 @@ export default function InstitutionDashboardPage() {
             <p className="text-sm text-slate-400">{stat.label}</p>
             <div className="mt-4 flex items-end justify-between">
               <h2 className="text-3xl font-bold text-white">{stat.value}</h2>
-              <span className="rounded-full bg-slate-800 px-2 py-1 text-xs text-emerald-300">{stat.change}</span>
             </div>
           </div>
         ))}

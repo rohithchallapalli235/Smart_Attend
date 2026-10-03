@@ -12,7 +12,7 @@ Institutional smart attendance management system for colleges and institutions.
   - 60 to <75% = Alert (blue)
   - <60% = Warning (red)
 - Email alert to faculty and parent when attendance enters Alert or Warning range
-- College SMTP configuration using your own college email ID and password
+- Parent and faculty email alerts through Resend or configured SMTP
 - Institution-managed registration for students and faculty
 
 ## Tech stack
@@ -21,7 +21,7 @@ Institutional smart attendance management system for colleges and institutions.
 - TypeScript
 - Tailwind CSS
 - Nodemailer
-- Prisma with SQLite
+- Prisma with PostgreSQL
 
 ## Local setup
 
@@ -31,47 +31,45 @@ Institutional smart attendance management system for colleges and institutions.
 npm install
 ```
 
-2. Create your environment file:
+2. Create a PostgreSQL database and configure your environment:
 
 ```bash
-cp .env.example .env.local
+Copy `.env.example` to `.env.local`, then set `DATABASE_URL` to your PostgreSQL connection string and choose an institution email/password.
 ```
 
-3. Update the SMTP credentials in `.env.local`:
+3. Configure email delivery. Resend is recommended for Render because some Render services restrict SMTP egress. Verify a sending domain with Resend, then set:
 
 ```env
-SMTP_HOST=smtp.college.edu
-SMTP_PORT=587
-SMTP_USER=attendance@college.edu
-SMTP_PASSWORD=your-college-mail-password
-SMTP_FROM=attendance@college.edu
-SMTP_SECURE=false
+RESEND_API_KEY=re_...
+EMAIL_FROM="Smart Attend <alerts@your-verified-domain.edu>"
 ```
 
-The default local database is SQLite. Initialize it after installing dependencies:
+Alternatively configure an SMTP service with `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`. Never commit email-provider secrets.
+
+4. Initialize the database schema after installing dependencies:
 
 ```bash
 npx prisma db push
 ```
 
-The institution can register student and faculty login credentials from the institution dashboard. Passwords are stored as bcrypt hashes.
+The institution can register faculty and students from the institution dashboard. Their records are stored in PostgreSQL, and passwords are stored as bcrypt hashes.
 
-4. Start the app:
+5. Start the app:
 
 ```bash
 npm run dev
 ```
 
-5. Open the app in the browser:
+6. Open the app in the browser:
 
 ```text
 http://localhost:3000
 ```
 
-## Important note on email
+## Render deployment
 
-The application is designed to use your institution's college email account as the sender. The email credentials are entered in `.env.local` and should never be committed to version control.
+Create a Render PostgreSQL database, then set the web service's `DATABASE_URL` to that database's **Internal Database URL**. Set `INSTITUTION_EMAIL` and a strong `INSTITUTION_PASSWORD` on the web service as well. The start command runs `prisma db push` before serving requests; the build does not require a live database.
 
-## Production note
+For alerts, set `RESEND_API_KEY` and `EMAIL_FROM` in the Render web service's environment. The sender domain must be verified with Resend. Alternatively, set all SMTP variables for an SMTP provider that permits connections from Render. Email alerts are submitted as soon as attendance is saved, and a batch is processed concurrently.
 
-For production deployment, use a secure environment secret manager or hosting platform secrets manager.
+Use Render's secret environment variables for all credentials. If the existing deployment contains users in an ephemeral SQLite database, provision PostgreSQL and re-register those users or migrate them once; this change cannot recover data already lost when the ephemeral instance restarted. The SMTP password previously embedded in source should be revoked and replaced.

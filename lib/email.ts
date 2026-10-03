@@ -1,30 +1,24 @@
 import nodemailer from 'nodemailer';
 import { getAttendanceStatus } from '@/lib/attendance';
 
-// Bypass TLS certificate chain verification issues in cloud/network proxies
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 let sharedTransporter: nodemailer.Transporter | null = null;
 
 function getTransporter() {
   if (sharedTransporter) return sharedTransporter;
 
-  let smtpHost = process.env.SMTP_HOST?.trim();
-  let smtpUser = process.env.SMTP_USER?.trim();
-  let smtpPassword = process.env.SMTP_PASSWORD?.replace(/\s+/g, '');
+  const smtpHost = process.env.SMTP_HOST?.trim();
+  const smtpUser = process.env.SMTP_USER?.trim();
+  const smtpPassword = process.env.SMTP_PASSWORD?.replace(/\s+/g, '');
+  if (!smtpHost || !smtpUser || !smtpPassword) {
+    throw new Error('Email is not configured. Set RESEND_API_KEY and EMAIL_FROM, or SMTP_HOST, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM.');
+  }
 
-  if (!smtpHost || smtpHost.includes('college.edu')) {
-    smtpHost = 'smtp.gmail.com';
-  }
-  if (!smtpUser || smtpUser.includes('college.edu')) {
-    smtpUser = '24221a0550@bvcgroup.in';
-  }
-  if (!smtpPassword || smtpPassword.includes('your-college-mail-password')) {
-    smtpPassword = 'khmo hghw bgdf worp';
-  }
+  const port = Number(process.env.SMTP_PORT || 587);
 
   sharedTransporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: smtpHost,
+    port,
+    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465,
     pool: true,
     maxConnections: 5,
     maxMessages: 100,
@@ -33,7 +27,7 @@ function getTransporter() {
       pass: smtpPassword,
     },
     tls: {
-      rejectUnauthorized: false,
+      rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false',
     },
   });
 
@@ -55,21 +49,13 @@ export async function sendFacultyAndParentAlert({
   courseName: string;
   subjectName?: string;
 }) {
-  let smtpUser = process.env.SMTP_USER?.trim();
-  if (!smtpUser || smtpUser.includes('college.edu')) {
-    smtpUser = '24221a0550@bvcgroup.in';
-  }
-  const smtpFrom = process.env.SMTP_FROM || smtpUser;
-
-  const transporter = getTransporter();
-
   const status = getAttendanceStatus(percentage);
   const statusColor =
     status.tone === 'green' ? '#22c55e' : status.tone === 'blue' ? '#3b82f6' : '#ef4444';
 
   const subjectHeader = subjectName ? `${subjectName} - ${studentName}` : studentName;
 
-  const rawRecipients = [facultyEmail, parentEmail, smtpUser];
+  const rawRecipients = [facultyEmail, parentEmail];
   const recipients = Array.from(
     new Set(
       rawRecipients
@@ -79,14 +65,11 @@ export async function sendFacultyAndParentAlert({
   );
 
   if (recipients.length === 0) {
-    recipients.push(smtpUser);
+    throw new Error('No valid faculty or parent email address is available for this alert.');
   }
 
-  const info = await transporter.sendMail({
-    from: `"Smart Attend Alert" <${smtpFrom}>`,
-    to: recipients.join(', '),
-    subject: `⚠️ Attendance Shortage Alert (${percentage.toFixed(1)}%): ${subjectHeader}`,
-    html: `
+  const subject = `Attendance Shortage Alert (${percentage.toFixed(1)}%): ${subjectHeader}`;
+  const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #0f172a; color: #f8fafc; border-radius: 16px; border: 1px solid #334155;">
         <div style="text-align: center; padding-bottom: 16px; border-bottom: 1px solid #334155;">
           <h1 style="color: #38bdf8; margin: 0; font-size: 22px;">Smart Attend - BVC Engineering College</h1>
@@ -115,7 +98,38 @@ export async function sendFacultyAndParentAlert({
           Smart Attend System • BVC Engineering College
         </div>
       </div>
-    `,
+    `;
+
+  const resendApiKey = process.env.RESEND_API_KEY?.trim();
+  if (resendApiKey) {
+    const from = process.env.EMAIL_FROM?.trim();
+    if (!from) throw new Error('EMAIL_FROM is required when RESEND_API_KEY is configured.');
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from, to: recipients, subject, html }),
+    });
+    const result = await response.json().catch(() => ({})) as { id?: string; message?: string };
+    if (!response.ok) {
+      throw new Error(result.message || `Email provider returned HTTP ${response.status}.`);
+    }
+    console.log(`Alert email accepted for [${recipients.join(', ')}]. Message ID: ${result.id ?? 'unknown'}`);
+    return result;
+  }
+
+  const smtpUser = process.env.SMTP_USER?.trim();
+  const smtpFrom = process.env.SMTP_FROM?.trim() || smtpUser;
+  if (!smtpFrom) throw new Error('SMTP_FROM or SMTP_USER is required for the sender address.');
+
+  const info = await getTransporter().sendMail({
+    from: `"Smart Attend Alert" <${smtpFrom}>`,
+    to: recipients.join(', '),
+    subject,
+    html,
   });
 
   console.log(`Alert email successfully sent to [${recipients.join(', ')}]. Message ID: ${info.messageId}`);
