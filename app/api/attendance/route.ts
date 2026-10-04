@@ -35,11 +35,8 @@ export async function POST(request: Request) {
       return student.percentage < 75 || subjectPercentage < 75;
     });
 
-    let emailSentCount = 0;
-    let emailErrorMsg: string | undefined;
-
     if (lowAttendanceStudents.length > 0) {
-      const emailResults = await Promise.allSettled(
+      void Promise.allSettled(
         lowAttendanceStudents.map((student) => {
           const subjectRecord = student.subjects.find((s) => s.name.toLowerCase() === body.subject.trim().toLowerCase());
           const subjectPercentage = subjectRecord ? subjectRecord.percentage : student.percentage;
@@ -53,23 +50,19 @@ export async function POST(request: Request) {
             subjectName: body.subject,
           });
         })
-      );
-
-      for (const res of emailResults) {
-        if (res.status === 'fulfilled') {
-          emailSentCount += 1;
-        } else {
-          emailErrorMsg = res.reason instanceof Error ? res.reason.message : 'Unknown email error';
-          console.error('Parallel alert email failed:', res.reason);
-        }
-      }
+      ).then((results) => {
+        results.forEach((result) => {
+          if (result.status === 'rejected') {
+            console.error('Parallel alert email failed:', result.reason);
+          }
+        });
+      });
     }
 
     return NextResponse.json({
       students,
-      emailSent: emailSentCount,
       lowAttendanceCount: lowAttendanceStudents.length,
-      emailError: emailErrorMsg,
+      emailSending: lowAttendanceStudents.length > 0,
     });
   } catch (error) {
     return NextResponse.json(
