@@ -210,10 +210,14 @@ function HomeContent() {
       return;
     }
 
-    const result = await response.json() as { students: StudentRecord[]; emailSending: boolean; lowAttendanceCount?: number };
+    const result = await response.json() as { students: StudentRecord[]; emailSending?: boolean; lowAttendanceCount?: number; emailSent?: number; emailError?: string };
     setStudentList((prev) => prev.map((student) => result.students.find((updated) => updated.rollNo === student.rollNo) ?? student));
     setMarkedAttendance((prev) => ({ ...prev, ...attendanceDraft }));
-    if (result.emailSending) {
+    if (result.emailError) {
+      setAttendanceMessage(`Attendance saved, but email alert failed: ${result.emailError}`);
+    } else if ((result.emailSent ?? 0) > 0) {
+      setAttendanceMessage(`Attendance saved. ${result.emailSent} alert email(s) successfully delivered to faculty & parent.`);
+    } else if (result.emailSending || (result.lowAttendanceCount ?? 0) > 0) {
       setAttendanceMessage('Attendance saved. Low-attendance alert emails are sending automatically.');
     } else {
       setAttendanceMessage('Attendance saved. Selected students have safe attendance (>= 75%).');
@@ -248,14 +252,18 @@ function HomeContent() {
         return;
       }
 
-      const result = (await response.json()) as { students: StudentRecord[]; emailSending: boolean };
+      const result = (await response.json()) as { students: StudentRecord[]; emailSending?: boolean; lowAttendanceCount?: number; emailSent?: number; emailError?: string };
       setStudentList((prev) => prev.map((student) => result.students.find((updated) => updated.rollNo === student.rollNo) ?? student));
       setMarkedAttendance((prev) => ({ ...prev, [rollNo]: present }));
 
       const targetStudent = studentList.find((s) => s.rollNo === rollNo);
       const studentName = targetStudent?.name ?? rollNo;
 
-      if (result.emailSending) {
+      if (result.emailError) {
+        setAttendanceMessage(`Attendance saved for ${studentName}, but email alert failed: ${result.emailError}`);
+      } else if ((result.emailSent ?? 0) > 0) {
+        setAttendanceMessage(`Attendance saved for ${studentName}! Low attendance alert email (< 75%) successfully sent to parent & faculty.`);
+      } else if (result.emailSending || (result.lowAttendanceCount ?? 0) > 0) {
         setAttendanceMessage(`Attendance saved for ${studentName}. Low-attendance alert emails are sending automatically.`);
       } else {
         setAttendanceMessage(`Attendance saved for ${studentName} (${present ? 'Present' : 'Absent'}). Student attendance is safe (>= 75%).`);
